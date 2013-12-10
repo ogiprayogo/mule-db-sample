@@ -57,14 +57,6 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 		<jdbc-ee:inbound-endpoint queryKey="get-invoices"
 			queryTimeout="-1" pollingFrequency="1000" connector-ref="legacyConnector"
 			doc:name="Get data from InvoiceItem" />
-		<jdbc-ee:outbound-endpoint exchange-pattern="one-way"
-			queryKey="flag-rows" queryTimeout="-1" connector-ref="legacyConnector"
-			doc:name="Flag intermediate table">
-			<jdbc-ee:query key="flag-rows"
-				value="update invoiceitem
-set action_flag = 'ERROR'
-where id = #[message.payload.id];" />
-		</jdbc-ee:outbound-endpoint>
 		<enricher target="#[variable:inv_no]" doc:name="Get InvoiceNo">
 			<jdbc-ee:outbound-endpoint
 				exchange-pattern="request-response" queryKey="get-invoice-no"
@@ -101,6 +93,15 @@ set action_flag = 'PROCESSED'
 where action_flag = 'NEW' and id = #[message.payload.id]" />
 		</jdbc-ee:outbound-endpoint>
 		<echo-component doc:name="Echo" />
-		<catch-exception-strategy doc:name="Catch Exception Strategy" />
+		<catch-exception-strategy doc:name="Catch Exception Strategy" >
+            <jdbc-ee:outbound-endpoint exchange-pattern="one-way"
+    			queryKey="flag-rows" queryTimeout="-1" connector-ref="legacyConnector"
+    			doc:name="Flag intermediate table">
+    			<jdbc-ee:query key="flag-rows"
+    				value="update invoiceitem
+set action_flag = 'ERROR'
+where id = #[message.payload.id];" />
+    		</jdbc-ee:outbound-endpoint>
+        </catch-exception-strategy>
 	</flow>
 </mule>

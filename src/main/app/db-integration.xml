@@ -1,107 +1,64 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+<mule xmlns:jdbc="http://www.mulesoft.org/schema/mule/jdbc" xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:jdbc-ee="http://www.mulesoft.org/schema/mule/ee/jdbc"
 	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
 	xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:core="http://www.mulesoft.org/schema/mule/core"
-	version="EE-3.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	version="CE-3.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/jdbc http://www.mulesoft.org/schema/mule/ee/jdbc/current/mule-jdbc-ee.xsd
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
-http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
-	<!-- Placeholder for database connection settings -->
-	<context:property-placeholder location="database.properties" />
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/jdbc http://www.mulesoft.org/schema/mule/jdbc/current/mule-jdbc.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+	<context:property-placeholder location="classpath:database.properties" />
 	<spring:beans>
-		<spring:bean id="legacyDataSource" name="legacyDataSource"
+		<spring:bean id="sourceDbSource" name="sourceDbSource"
 			class="com.mchange.v2.c3p0.ComboPooledDataSource">
 			<spring:property name="driverClass" value="${database.source.driver}" />
 			<spring:property name="jdbcUrl" value="${database.source.url}" />
 			<spring:property name="user" value="${database.source.user}" />
 			<spring:property name="password" value="${database.source.password}" />
 		</spring:bean>
-		<spring:bean id="mmsv50DataSource" 
-		             name="mmsv50DataSource"
-			         class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<spring:bean id="targetDbSource" name="targetDbSource"
+			class="com.mchange.v2.c3p0.ComboPooledDataSource">
 			<spring:property name="driverClass" value="${database.target.driver}" />
-			<spring:property name="jdbcUrl"		value="${database.target.url}" />
-			<spring:property name="user"        value="${database.target.user}" />
-			<spring:property name="password"    value="${database.target.password}" />
+			<spring:property name="jdbcUrl" value="${database.target.url}" />
+			<spring:property name="user" value="${database.target.user}" />
+			<spring:property name="password" value="${database.target.password}" />
 		</spring:bean>
+		 
 	</spring:beans>
-	<jdbc-ee:connector name="legacyConnector"
-		               dataSource-ref="legacyDataSource" 
-		               validateConnections="false"
-		               transactionPerMessage="false" queryTimeout="-1" pollingFrequency="0"
-		               doc:name="Database" doc:description="JDBC Connection via Spring to PPSB legacy table">
-		<jdbc-ee:query key="get-invoices"
-			value="
-        			SELECT
-						no_induk,  no_reg_grp, harga,  harga_total,  staff_id,  cashier_loc,  transact_date, 
-						no_bukti,  action_flag,  integration_message
-					FROM ppsb_legacy.InvoiceItem
-					WHERE action_flag= 'NEW';
-" />
-	</jdbc-ee:connector>
-	<jdbc-ee:connector name="mmsv50Connector"
-		dataSource-ref="mmsv50DataSource" validateConnections="false"
-		transactionPerMessage="false" queryTimeout="-1" pollingFrequency="0"
-		doc:name="Database" doc:description="JDBC Connection via Spring to MMS HIS tables" />
-	<flow name="BIL-01" doc:name="BIL-01"
-		doc:description="
-1. Get inserted row data from InvoiceItem table in intermerdiate table
-2. Get the invoice number from KMS_ADM_INVC_HEAD with mr_no and actv_grp_id 
-3. Get the item count
-4. Insert data to KMS_ADM_INVC_ITEM">
-		<jdbc-ee:inbound-endpoint queryKey="get-invoices"
-			queryTimeout="-1" pollingFrequency="1000" connector-ref="legacyConnector"
-			doc:name="Get data from InvoiceItem" />
-		<enricher target="#[variable:inv_no]" doc:name="Get InvoiceNo">
-			<jdbc-ee:outbound-endpoint
-				exchange-pattern="request-response" queryKey="get-invoice-no"
-				queryTimeout="-1" connector-ref="mmsv50Connector" doc:name="Get InvoiceNo">
-				<jdbc-ee:query key="get-invoice-no"
-					value="
-                			SELECT 	invoice_head.invoice_no
-						   	FROM 	mmsv50.dbo.KMS_ADM_INVC_HEAD invoice_head
-						  	WHERE 	invoice_head.actv_grp_id = #[message.payload.ref_actv_grp_id]
-						         	AND invoice_head.mr_no   = #[message.payload.mr_no]
-  				" />
-			</jdbc-ee:outbound-endpoint>
-		</enricher>
-		<enricher target="#[variable:item_count]" doc:name="Get item count">
-			<jdbc-ee:outbound-endpoint
-				exchange-pattern="request-response" queryKey="get-item-count"
-				queryTimeout="-1" connector-ref="mmsv50Connector" doc:name="Get item count">
-				<jdbc-ee:query key="get-item-count"
-					value="SELECT COUNT(1) + 1
-FROM [mmsv50].[kms].[KMS_ADM_INVC_ITEM] invoice_item
-WHERE invoice_item.inv_no = #[message.payload.inv_no]" />
-			</jdbc-ee:outbound-endpoint>
-		</enricher>
-		<set-payload value="#[payload.invoiceno=flowVar['invoiceNo'][0]]"
-			doc:name="Set Payload" />
-		<logger message="#[message.payload] and #[flowVars['item_count'][0]]"
-			level="INFO" doc:name="Logger" />
-		<jdbc-ee:outbound-endpoint exchange-pattern="one-way"
-			queryKey="update-flag" queryTimeout="-1" connector-ref="legacyConnector"
-			doc:name="update flag on legacy database">
-			<jdbc-ee:query key="update-flag"
-				value="update invoiceitem
-set action_flag = 'PROCESSED'
-where action_flag = 'NEW' and id = #[message.payload.id]" />
-		</jdbc-ee:outbound-endpoint>
-		<echo-component doc:name="Echo" />
-		<catch-exception-strategy doc:name="Catch Exception Strategy" >
-            <jdbc-ee:outbound-endpoint exchange-pattern="one-way"
-    			queryKey="flag-rows" queryTimeout="-1" connector-ref="legacyConnector"
-    			doc:name="Flag intermediate table">
-    			<jdbc-ee:query key="flag-rows"
-    				value="update invoiceitem
-set action_flag = 'ERROR'
-where id = #[message.payload.id];" />
-    		</jdbc-ee:outbound-endpoint>
-        </catch-exception-strategy>
+	<!-- global components -->
+	<jdbc:connector name="sourceDbConnector"
+		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
+		doc:name="sourceJDBC" dataSource-ref="sourceDbSource" />
+	<jdbc:connector name="targetDBConnector"
+		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
+		doc:name="targetJDBC" dataSource-ref="targetDbSource" />
+	<!-- start flow -->
+	<flow name="invoice-item" doc:name="invoice-item"
+		initialState="started">
+		<jdbc:inbound-endpoint queryTimeout="-1"
+			pollingFrequency="1000" doc:name="get invoice item" connector-ref="sourceDbConnector"
+			queryKey="get_invoice_item">
+            <jdbc:query key="get_invoice_item" value="SELECT transaction_id, item_id, customer_id, quantity
+from invoice_item
+where integration_flag = &quot;NEW&quot;;"/>
+		</jdbc:inbound-endpoint>
+        <enricher doc:name="Message Enricher" target="#[flowVars['invoice_no']]">
+            <jdbc:outbound-endpoint exchange-pattern="request-response" queryTimeout="-1" doc:name="Database" connector-ref="targetDBConnector" queryKey="get-invoice-no">
+                <jdbc:query key="get-invoice-no" value="SELECT invoice_no
+from invoice_header
+where customer_id = #[payload.customer_id] 
+and transaction_id = #[payload.transaction_id]"/>
+            </jdbc:outbound-endpoint>
+        </enricher>
+        <set-payload value="#[payload.invoice_no] = #[flowVars['invoice_no']]" doc:name="Set Payload"/>
+        <echo-component doc:name="Echo" />
 	</flow>
+
+
 </mule>

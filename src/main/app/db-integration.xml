@@ -14,8 +14,10 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 http://www.mulesoft.org/schema/mule/jdbc http://www.mulesoft.org/schema/mule/jdbc/current/mule-jdbc.xsd
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
-	<context:property-placeholder location="classpath:database.properties" />
+	
 	<spring:beans>
+		<spring:import resource="classpath:spring-database.xml" />
+		<!-- 
 		<spring:bean id="sourceDbSource" name="sourceDbSource"
 			class="com.mchange.v2.c3p0.ComboPooledDataSource">
 			<spring:property name="driverClass" value="${database.source.driver}" />
@@ -30,7 +32,7 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 			<spring:property name="user" value="${database.target.user}" />
 			<spring:property name="password" value="${database.target.password}" />
 		</spring:bean>
-		 
+		  -->
 	</spring:beans>
 	<!-- global components -->
 	<jdbc:connector name="sourceDbConnector"

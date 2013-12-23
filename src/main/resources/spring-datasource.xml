@@ -14,12 +14,12 @@
 		<property name="user" value="${database.source.user}" />
 		<property name="password" value="${database.source.password}" />
 	</bean>
-	<!-- 
+	
 	<bean id="targetDatasource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
 		<property name="driverClass" value="${database.target.driver>"/>
 		<property name="jdbcUrl" value="${database.target.url" />
 		<property name="user" value="${database.target.user}" />
 		<property name="password" value="${database.target.password}" />
 	</bean>
-	 -->
+	 
 </beans>

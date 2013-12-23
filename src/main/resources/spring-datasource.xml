@@ -1,0 +1,25 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!-- <context:property-placeholder location="classpath:database.properties" />  -->
+
+	<bean id="sourceDbSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${database.source.driver}"/>
+		<property name="jdbcUrl" value="${database.source.url" />
+		<property name="user" value="${database.source.user}" />
+		<property name="password" value="${database.source.password}" />
+	</bean>
+	<!-- 
+	<bean id="targetDatasource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${database.target.driver>"/>
+		<property name="jdbcUrl" value="${database.target.url" />
+		<property name="user" value="${database.target.user}" />
+		<property name="password" value="${database.target.password}" />
+	</bean>
+	 -->
+</beans>

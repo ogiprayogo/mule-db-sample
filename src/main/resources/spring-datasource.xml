@@ -30,8 +30,14 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 			class="com.mchange.v2.c3p0.ComboPooledDataSource">
 			<spring:property name="driverClass" value="${database.target.driver}>" />
 			<spring:property name="jdbcUrl" value="${database.target.url}" />
-			<spring:property  name="user" value="${database.target.user}" />
+			<spring:property name="user" value="${database.target.user}" />
 			<spring:property name="password" value="${database.target.password}" />
 		</spring:bean>
 	</spring:beans>
+	<jdbc:connector name="sourceDbConnector"
+		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
+		doc:name="sourceJDBC" dataSource-ref="sourceDbSource" />
+	<jdbc:connector name="targetDBConnector"
+		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
+		doc:name="targetJDBC" dataSource-ref="targetDbSource" />
 </mule>

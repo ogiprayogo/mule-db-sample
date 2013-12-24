@@ -21,15 +21,15 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 		<spring:bean id="sourceDbSource" name="sourceDbSource"
 			class="com.mchange.v2.c3p0.ComboPooledDataSource">
 			<spring:property name="driverClass" value="${database.source.driver}" />
-			<spring:property name="jdbcUrl" value="${database.source.url" />
+			<spring:property name="jdbcUrl" value="${database.source.url}" />
 			<spring:property name="user" value="${database.source.user}" />
 			<spring:property name="password" value="${database.source.password}" />
 		</spring:bean>
 
 		<spring:bean id="targetDbSource" name="targetDbSource"
 			class="com.mchange.v2.c3p0.ComboPooledDataSource">
-			<spring:property name="driverClass" value="${database.target.driver>" />
-			<spring:property name="jdbcUrl" value="${database.target.url" />
+			<spring:property name="driverClass" value="${database.target.driver}>" />
+			<spring:property name="jdbcUrl" value="${database.target.url}" />
 			<spring:property  name="user" value="${database.target.user}" />
 			<spring:property name="password" value="${database.target.password}" />
 		</spring:bean>

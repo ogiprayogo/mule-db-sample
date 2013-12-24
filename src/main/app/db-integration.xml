@@ -11,78 +11,71 @@
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-http://www.mulesoft.org/schema/mule/jdbc http://www.mulesoft.org/schema/mule/jdbc/current/mule-jdbc.xsd
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
-	
-	<spring:beans>
-		<spring:import resource="classpath:spring-datasource.xml" /> 
-		<!--  
-		<context:property-placeholder location="classpath:database.properties" />
-		<spring:bean id="sourceDbSource" name="sourceDbSource"
-			class="com.mchange.v2.c3p0.ComboPooledDataSource">
-			<spring:property name="driverClass" value="${database.source.driver}" />
-			<spring:property name="jdbcUrl" value="${database.source.url}" />
-			<spring:property name="user" value="${database.source.user}" />
-			<spring:property name="password" value="${database.source.password}" />
-		</spring:bean>
-		<spring:bean id="targetDbSource" name="targetDbSource"
-			class="com.mchange.v2.c3p0.ComboPooledDataSource">
-			<spring:property name="driverClass" value="${database.target.driver}" />
-			<spring:property name="jdbcUrl" value="${database.target.url}" />
-			<spring:property name="user" value="${database.target.user}" />
-			<spring:property name="password" value="${database.target.password}" />
-		</spring:bean>
-		-->
-	</spring:beans>
+    <spring:beans> 
+        <spring:import resource="classpath:spring-datasource.xml" />
+        <!-- 
+        <context:property-placeholder location="classpath:database.properties"></context:property-placeholder>  
+        <spring:bean id="sourceDbSource" name="sourceDbSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"> 
+            <spring:property name="driverClass" value="${database.source.driver}"></spring:property>  
+            <spring:property name="jdbcUrl" value="${database.source.url}"></spring:property>  
+            <spring:property name="user" value="${database.source.user}"></spring:property>  
+            <spring:property name="password" value="${database.source.password}"></spring:property>  
+        </spring:bean>  
+        <spring:bean id="targetDbSource" name="targetDbSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"> 
+            <spring:property name="driverClass" value="${database.target.driver}"></spring:property>  
+            <spring:property name="jdbcUrl" value="${database.target.url}"></spring:property>  
+            <spring:property name="user" value="${database.target.user}"></spring:property>  
+            <spring:property name="password" value="${database.target.password}"></spring:property>  
+        </spring:bean>  
+         -->
+    </spring:beans>
+    <jdbc-ee:connector name="sourceDbConnector" validateConnections="true" queryTimeout="-1" pollingFrequency="0" doc:name="sourceJDBC" dataSource-ref="sourceDbSource"></jdbc-ee:connector>
+    <jdbc-ee:connector name="targetDBConnector" validateConnections="true" queryTimeout="-1" pollingFrequency="0" doc:name="targetJDBC" dataSource-ref="targetDbSource"></jdbc-ee:connector>
+    <flow name="invoice-item" doc:name="invoice-item" initialState="started"> 
+        <jdbc-ee:inbound-endpoint queryTimeout="-1" pollingFrequency="1000" doc:name="get invoice item" connector-ref="sourceDbConnector" queryKey="get_invoice_item"> 
+            <jdbc-ee:query key="get_invoice_item" value="SELECT transaction_id, item_id, customer_id, quantity
+from invoice_item
+where integration_flag = &quot;NEW&quot;;"></jdbc-ee:query>  
+        </jdbc-ee:inbound-endpoint>  
+        <enricher doc:name="Get Invoice Number" target="#[variable:invoice_no]"> 
+            <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryTimeout="-1" doc:name="retrieve invoice no " connector-ref="targetDBConnector" queryKey="get-invoice-no"> 
+                <jdbc-ee:query key="get-invoice-no" value="SELECT invoice_no
+FROM invoice_header
+WHERE transaction_id = #[payload.transaction_id]"></jdbc-ee:query>  
+            </jdbc-ee:outbound-endpoint>  
+        </enricher>  
+        <scripting:transformer doc:name="append 'invoice_no'"> 
+            <scripting:script engine="Groovy"><![CDATA[
+            // append the payload
+			payload =  payload + flowVars['invoice_no'][0] ]]>  </scripting:script>  
+        </scripting:transformer>  
+        <enricher target="#[variable:item_count]" doc:name="Get invoice item count"> 
+            <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="get-item-count" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="retrieve item count"> 
+                <jdbc-ee:query key="get-item-count" value="select count(1) + 1 
+from invoice_items 
+where invoice_items.invoice_no = #[payload.invoice_no]"></jdbc-ee:query>  
+            </jdbc-ee:outbound-endpoint>  
+        </enricher>  
+        <scripting:transformer doc:name="Append 'item_count'"> 
+            <scripting:script engine="Groovy"><![CDATA[payload = payload + flowVars['item_count'][0]]]></scripting:script>  
+        </scripting:transformer>  
+        <echo-component doc:name="Echo"></echo-component>  
+        <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="insert invoice item" queryKey="insert-invoice-item"> 
+            <jdbc-ee:query key="insert-invoice-item" value="INSERT INTO invoice_items (item_id, item_qty, invoice_no)
+VALUES (#[payload.item_id],#[payload.quantity], #[payload.invoice_no])"></jdbc-ee:query>  
+        </jdbc-ee:outbound-endpoint>  
+        <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="update legacy flag"> 
+            <jdbc-ee:query key="update-flag" value="update invoice_item
+set integration_flag = &quot;PROCESSED&quot;
+where invoice_item.transaction_id = #[payload.transaction_id]"></jdbc-ee:query>  
+        </jdbc-ee:outbound-endpoint>  
+    </flow>
+
 	
 	<!-- global components -->
-	<jdbc:connector name="sourceDbConnector"
-		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
-		doc:name="sourceJDBC" dataSource-ref="sourceDbSource" />
-	<jdbc:connector name="targetDBConnector"
-		validateConnections="true" queryTimeout="-1" pollingFrequency="0"
-		doc:name="targetJDBC" dataSource-ref="targetDbSource" />
+
 	<!-- start flow -->
-	<flow name="invoice-item" doc:name="invoice-item"
-		initialState="started">
-		<jdbc:inbound-endpoint queryTimeout="-1"
-			pollingFrequency="1000" doc:name="get invoice item" connector-ref="sourceDbConnector"
-			queryKey="get_invoice_item">
-            <jdbc:query key="get_invoice_item" value="SELECT transaction_id, item_id, customer_id, quantity
-from invoice_item
-where integration_flag = &quot;NEW&quot;;"/>
-		</jdbc:inbound-endpoint>
-        <enricher doc:name="Get Invoice Number" target="#[variable:invoice_no]">
-            <jdbc:outbound-endpoint exchange-pattern="request-response" queryTimeout="-1" doc:name="retrieve invoice no " connector-ref="targetDBConnector" queryKey="get-invoice-no">
-                <jdbc:query key="get-invoice-no" value="SELECT invoice_no
-FROM invoice_header
-WHERE transaction_id = #[payload.transaction_id]"/>
-            </jdbc:outbound-endpoint>
-        </enricher>
-        <scripting:transformer doc:name="append 'invoice_no'">
-            <scripting:script engine="Groovy"><![CDATA[// append the payload
-payload =  payload + flowVars['invoice_no'][0]]]></scripting:script>
-        </scripting:transformer>
-        <enricher target="#[variable:item_count]" doc:name="Get invoice item count">
-            <jdbc:outbound-endpoint exchange-pattern="request-response" queryKey="get-item-count" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="retrieve item count">
-                <jdbc:query key="get-item-count" value="select count(1) + 1 
-from invoice_items 
-where invoice_items.invoice_no = #[payload.invoice_no]"/>
-            </jdbc:outbound-endpoint>
-        </enricher>
-        <scripting:transformer doc:name="Append 'item_count'">
-            <scripting:script engine="Groovy"><![CDATA[payload = payload + flowVars['item_count'][0]]]></scripting:script>
-        </scripting:transformer>
-        <echo-component doc:name="Echo"/>
-        <jdbc:outbound-endpoint exchange-pattern="one-way" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="insert invoice item" queryKey="insert-invoice-item">
-            <jdbc:query key="insert-invoice-item" value="INSERT INTO invoice_items (item_id, item_qty, invoice_no)
-VALUES (#[payload.item_id],#[payload.quantity], #[payload.invoice_no])"/>
-        </jdbc:outbound-endpoint>
-        <jdbc:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="update legacy flag">
-            <jdbc:query key="update-flag" value="update invoice_item
-set integration_flag = &quot;PROCESSED&quot;
-where invoice_item.transaction_id = #[payload.transaction_id]"/>
-        </jdbc:outbound-endpoint>
-	</flow>
+
 </mule>

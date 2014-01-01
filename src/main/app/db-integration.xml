@@ -60,7 +60,7 @@ WHERE invoice_items.invoice_no = #[payload.invoice_no]"/>
                 </jdbc-ee:outbound-endpoint>
             </otherwise>
         </choice>
-        <catch-exception-strategy doc:name="Catch Exception Strategy">
+        <catch-exception-strategy doc:name="If mandatory fields incomplete" enableNotifications="false">
             <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="Database">
                 <jdbc-ee:query key="update-flag" value="UPDATE invoice_item 
 SET integration_flag = &quot;ERROR&quot;

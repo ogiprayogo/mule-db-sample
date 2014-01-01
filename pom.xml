@@ -11,7 +11,6 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-
 		<mule.version>3.4.0</mule.version>
 		<eclipsePluginVersion>2.8</eclipsePluginVersion>
 		<jdkName>JavaSE-1.7</jdkName>
@@ -73,13 +72,17 @@
 							<groupId>com.mulesoft.mule.transport</groupId>
 							<artifactId>mule-transport-hl7</artifactId>
 						</inclusion>
+						<inclusion>
+							<groupId>com.mulesoft.muleesb.transports</groupId>
+							<artifactId>mule-transport-jdbc-ee</artifactId>
+						</inclusion>
 					</inclusions>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.1</version>
 				<configuration>
 					<source>${jdk.version}</source>
 					<target>${jdk.version}</target>
@@ -241,8 +244,9 @@
 		</plugins>
 	</reporting>
 
-	<!-- Mule Dependencies -->
+
 	<dependencies>
+		<!-- Mule Dependencies -->
 		<dependency>
 			<groupId>org.mule</groupId>
 			<artifactId>mule-core</artifactId>
@@ -375,6 +379,12 @@
 			<groupId>com.mulesoft.mule.transport</groupId>
 			<artifactId>mule-transport-hl7</artifactId>
 			<version>3.3.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.mulesoft.muleesb.transports</groupId>
+			<artifactId>mule-transport-jdbc-ee</artifactId>
+			<version>${mule.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 

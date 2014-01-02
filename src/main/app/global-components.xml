@@ -29,10 +29,10 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
             <spring:property name="password" value="${database.target.password}"></spring:property>  
         </spring:bean>  
     </spring:beans>
-    <jdbc-ee:connector name="sourceDbConnector" validateConnections="true" queryTimeout="-1" pollingFrequency="0" doc:name="sourceJDBC" dataSource-ref="sourceDbSource"></jdbc-ee:connector>
-    <jdbc-ee:connector name="targetDBConnector" validateConnections="true" queryTimeout="-1" pollingFrequency="0" doc:name="targetJDBC" dataSource-ref="targetDbSource"></jdbc-ee:connector>
-	<!--  database source as spring beans -->
-
-	<!--  Mule connector using spring beans datasource -->
-
+    <jdbc-ee:connector name="sourceDbConnector" validateConnections="true" 
+    				   queryTimeout="-1" pollingFrequency="0" doc:name="sourceJDBC" 
+    				   dataSource-ref="sourceDbSource"></jdbc-ee:connector>
+    <jdbc-ee:connector name="targetDBConnector" validateConnections="true" 
+                       queryTimeout="-1" pollingFrequency="0" doc:name="targetJDBC" 
+                       dataSource-ref="targetDbSource"></jdbc-ee:connector>
 </mule>

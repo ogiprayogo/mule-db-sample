@@ -14,24 +14,24 @@ http://www.springframework.org/schema/beans http://www.springframework.org/schem
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
-    <flow name="invoice-item" doc:name="invoice-item" initialState="started"> 
-        <jdbc-ee:inbound-endpoint queryTimeout="-1" pollingFrequency="1000" doc:name="get invoice item" connector-ref="sourceDbConnector" queryKey="get_invoice_item"> 
+    <flow name="invoice-item" doc:name="invoice-item" initialState="started" doc:description="This integration scenario is triggered Mule checks the source the database for newly inserted invoice item data. If there is any new rows, Mule shall read the data row, append the invoice number for each of the invoice item, and then insert the data row into the target database."> 
+        <jdbc-ee:inbound-endpoint queryTimeout="-1" pollingFrequency="1000" doc:name="get invoice item" connector-ref="sourceDbConnector" queryKey="get_invoice_item" doc:description="Get invoice item rows from source database"> 
             <jdbc-ee:query key="get_invoice_item" value="SELECT transaction_id, item_id, customer_id, quantity
 from invoice_item
 where integration_flag = &quot;NEW&quot;;"></jdbc-ee:query>  
         </jdbc-ee:inbound-endpoint>  
-        <enricher doc:name="Get Invoice Number" target="#[variable:invoice_no]"> 
+        <enricher doc:name="Get Invoice Number" target="#[variable:invoice_no]" doc:description="Get additional info regarding invoice number from target database."> 
             <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryTimeout="-1" doc:name="retrieve invoice no " connector-ref="targetDBConnector" queryKey="get-invoice-no"> 
                 <jdbc-ee:query key="get-invoice-no" value="SELECT invoice_no
 FROM invoice_header
 WHERE transaction_id = #[payload.transaction_id]"></jdbc-ee:query>  
             </jdbc-ee:outbound-endpoint>  
         </enricher>  
-        <scripting:transformer doc:name="append 'invoice_no'"> 
+        <scripting:transformer doc:name="append 'invoice_no'" doc:description="Append invoice number to the payload"> 
             <scripting:script engine="Groovy"><![CDATA[// append the payload
 payload = payload + flowVars['invoice_no'][0]]]></scripting:script>  
         </scripting:transformer>  
-        <enricher target="#[variable:item_count]" doc:name="Get invoice item count"> 
+        <enricher target="#[variable:item_count]" doc:name="Get invoice item count" doc:description="The flow need info regarding invoice item count. Retrieve this info from target database"> 
             <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="get-item-count" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="retrieve item count"> 
                 <jdbc-ee:query key="get-item-count" value="select count(1) + 1
 from invoice_items
@@ -49,11 +49,11 @@ where invoice_items.invoice_no = #[payload.invoice_no]"></jdbc-ee:query>
                 </scripting:component>
             </when>
             <otherwise>
-                <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="insert_invoice_items" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="update invoice table">
+                <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="insert_invoice_items" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="update invoice table" doc:description="Update the invoice table">
                     <jdbc-ee:query key="insert_invoice_items" value="INSERT INTO invoice_items (item_id, item_qty, invoice_no)
 VALUES (#[payload.item_id],#[payload.quantity], #[payload.invoice_no])"/>
                 </jdbc-ee:outbound-endpoint>
-                <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="update integration flag">
+                <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="update integration flag" doc:description="Update the source database table to flag that the row data has been transferred to target database.">
                     <jdbc-ee:query key="update-flag" value="UPDATE invoice_item 
 SET integration_flag=&quot;PROCESSED&quot; 
 WHERE invoice_items.invoice_no = #[payload.invoice_no]"/>

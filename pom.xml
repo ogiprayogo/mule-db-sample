@@ -4,7 +4,7 @@
 
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mitrais.ice</groupId>
-	<artifactId>mule-db-sample</artifactId>
+	<artifactId>demo.integration.database</artifactId>
 	<packaging>mule</packaging>
 	<version>1.0.0-SNAPSHOT</version>
 

@@ -19,7 +19,8 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
             <jdbc-ee:query key="get_invoice_item" value="SELECT transaction_id, item_id, customer_id, quantity
 from invoice_item
 where integration_flag = &quot;NEW&quot;;"></jdbc-ee:query>  
-        </jdbc-ee:inbound-endpoint>  
+        </jdbc-ee:inbound-endpoint>
+        <echo-component doc:name="Echo"/>  
         <enricher doc:name="Get Invoice Number" target="#[variable:invoice_no]" doc:description="Get additional info regarding invoice number from target database."> 
             <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryTimeout="-1" doc:name="retrieve invoice no " connector-ref="targetDBConnector" queryKey="get-invoice-no"> 
                 <jdbc-ee:query key="get-invoice-no" value="SELECT invoice_no
@@ -32,36 +33,38 @@ WHERE transaction_id = #[payload.transaction_id]"></jdbc-ee:query>
 payload = payload + flowVars['invoice_no'][0]]]></scripting:script>  
         </scripting:transformer>  
         <enricher target="#[variable:item_count]" doc:name="Get invoice item count" doc:description="The flow need info regarding invoice item count. Retrieve this info from target database"> 
-            <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="get-item-count" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="retrieve item count"> 
-                <jdbc-ee:query key="get-item-count" value="select count(1) + 1
+            <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="get-item-count" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="retrieve item count">
+                <jdbc-ee:query key="get-item-count" value="select count(1) + 1 as &quot;item_count&quot;
 from invoice_items
-where invoice_items.invoice_no = #[payload.invoice_no]"></jdbc-ee:query>  
+where invoice_items.invoice_no = #[payload.invoice_no]"/>
+ 
             </jdbc-ee:outbound-endpoint>  
         </enricher>  
         <scripting:transformer doc:name="Append 'item_count'"> 
             <scripting:script engine="Groovy"><![CDATA[payload = payload + flowVars['item_count'][0]]]></scripting:script>  
         </scripting:transformer>
         <choice doc:name="Choice">
-            <when expression="#[payload.customer_id != null]">
+            <when expression="#[payload.customer_id == &quot;&quot;]">
                 <echo-component doc:name="Echo"/>
                 <scripting:component doc:name="throw exception">
-                    <scripting:script engine="Groovy"><![CDATA[throw new IllegalArgumentException("customer can't be null")]]></scripting:script>
+                    <scripting:script engine="Groovy"><![CDATA[throw new IllegalArgumentException("customer id can't be null or empty")]]></scripting:script>
                 </scripting:component>
             </when>
             <otherwise>
+                <logger message="payload is #[payload]" level="INFO" doc:name="Logger"/>
                 <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="insert_invoice_items" queryTimeout="-1" connector-ref="targetDBConnector" doc:name="update invoice table" doc:description="Update the invoice table">
-                    <jdbc-ee:query key="insert_invoice_items" value="INSERT INTO invoice_items (item_id, item_qty, invoice_no)
-VALUES (#[payload.item_id],#[payload.quantity], #[payload.invoice_no])"/>
+                    <jdbc-ee:query key="insert_invoice_items" value="INSERT INTO invoice_items (item_id, item_qty, invoice_no, invoice_seq)
+VALUES (#[payload.item_id],#[payload.quantity], #[payload.invoice_no], #[payload.item_count])"/>
                 </jdbc-ee:outbound-endpoint>
                 <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="update integration flag" doc:description="Update the source database table to flag that the row data has been transferred to target database.">
                     <jdbc-ee:query key="update-flag" value="UPDATE invoice_item 
 SET integration_flag=&quot;PROCESSED&quot; 
-WHERE invoice_items.invoice_no = #[payload.invoice_no]"/>
+WHERE invoice_item.transaction_id = #[payload.transaction_id]"/>
                 </jdbc-ee:outbound-endpoint>
             </otherwise>
         </choice>
         <catch-exception-strategy doc:name="If mandatory fields incomplete" enableNotifications="false">
-            <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="Database">
+            <jdbc-ee:outbound-endpoint exchange-pattern="one-way" queryKey="update-flag" queryTimeout="-1" connector-ref="sourceDbConnector" doc:name="Flag error on source">
                 <jdbc-ee:query key="update-flag" value="UPDATE invoice_item 
 SET integration_flag = &quot;ERROR&quot;
 where transaction_id = #[payload.transaction_id]"/>
